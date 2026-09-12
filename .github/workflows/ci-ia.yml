@@ -1,0 +1,46 @@
+name: CI - IA Conversacional
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/ia_conversacional/**'
+      - '.github/workflows/ci-ia.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/ia_conversacional/**'
+
+jobs:
+  test-ia:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/ia_conversacional
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/ia_conversacional/requirements.txt
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio ruff
+
+      - name: Lint con ruff (tolerante)
+        run: ruff check app/ || true
+
+      - name: Ejecutar tests (si existen)
+        run: |
+          if [ -d "tests" ]; then
+            pytest tests/ -v --tb=short
+          else
+            echo "Aún no hay tests. Se salta este paso."
+          fi

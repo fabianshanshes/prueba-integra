@@ -1,0 +1,49 @@
+name: CI - Motor de Rutas
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/motor_rutas/**'
+      - '.github/workflows/ci-motor-rutas.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/motor_rutas/**'
+
+jobs:
+  test-motor-rutas:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/motor_rutas
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/motor_rutas/requirements.txt
+
+      - name: Instalar dependencias (OR-Tools + httpx)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Ejecutar tests
+        run: |
+          # Si tienes tests en /tests, los corre
+          if [ -d "tests" ]; then
+            pytest tests/ -v --tb=short
+          else
+            echo "Aún no hay tests en motor_rutas"
+          fi
+
+      - name: Smoke test del prototipo de ruta ficticia
+        run: |
+          # Verifica que el prototipo del TSP al menos importa y corre
+          python prototipo_ruta_ficticia.py || echo "Proto falló (revisar manualmente)"

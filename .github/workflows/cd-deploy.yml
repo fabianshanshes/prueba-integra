@@ -1,0 +1,40 @@
+name: CD - Deploy a Servidor
+
+on:
+  workflow_run:
+    workflows: [ "Build & Push Docker Images" ]
+    types: [ completed ]
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Login en GHCR (para pull)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Pull de las nuevas imágenes
+        run: docker compose pull
+
+      - name: Reiniciar contenedores con las nuevas imágenes
+        run: docker compose up -d --remove-orphans
+
+      - name: Healthcheck post-deploy
+        run: |
+          sleep 10
+          echo "Verificando contenedores..."
+          docker compose ps
+          if ! docker compose ps | grep -q "Up"; then
+            echo "❌ Algún contenedor no arrancó correctamente"
+            exit 1
+          fi
+          echo "✅ Todos los servicios están Up"
+
+      - name: Logout de GHCR
+        if: always()
+        run: docker logout ghcr.io

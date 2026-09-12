@@ -1,0 +1,50 @@
+name: CI - API Gateway (Go)
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/api/**'
+      - '.github/workflows/ci-api.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/api/**'
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/api
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: backend/api/go.sum
+
+      - name: Verificar si existe go.mod
+        id: check_gomod
+        run: |
+          if [ -f "go.mod" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Aún no hay go.mod en backend/api, saltando..."
+          fi
+
+      - name: Descargar dependencias
+        if: steps.check_gomod.outputs.exists == 'true'
+        run: go mod download
+
+      - name: Ejecutar tests
+        if: steps.check_gomod.outputs.exists == 'true'
+        run: go test ./... -v
+
+      - name: Compilar
+        if: steps.check_gomod.outputs.exists == 'true'
+        run: go build -v ./...
