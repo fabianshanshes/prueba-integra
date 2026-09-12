@@ -1,0 +1,79 @@
+services:
+  # 1. Base de Datos Unificada con PostGIS (3 esquemas: api, scraper, rutas)
+  db:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: bd_supermercados
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-supermercados_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infrastructure/db:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    networks:
+      - microservices_net
+
+  # 2. Backend API Gateway en Golang (GORM)
+  backend:
+    build:
+      context: ./backend/api
+      dockerfile: Dockerfile
+    container_name: backend_api
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-supermercados_db}
+      - DB_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-supermercados_db}?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+    volumes:
+      - ./backend/api:/app
+      - /app/tmp
+    restart: unless-stopped
+    networks:
+      - microservices_net
+
+  # 3. Frontend Web (React + Vite)
+  frontend:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile
+    container_name: frontend_web
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    volumes:
+      - ./frontend/web:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - microservices_net
+
+  # 4. Message Broker (Redis para encolar tareas asíncronas)
+  redis:
+    image: redis:7-alpine
+    container_name: redis_broker
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - microservices_net
+
+networks:
+  microservices_net:
+    driver: bridge
+
+volumes:
+  pgdata:
