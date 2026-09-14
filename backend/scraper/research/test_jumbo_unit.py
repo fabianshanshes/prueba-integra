@@ -1,7 +1,7 @@
 """Punto de entrada histórico para probar el spider de Jumbo.
 
 La implementación vive en ``scraper_core/spiders/jumbo`` para que
-``scrapy crawl jumbo_rsc`` y esta prueba no puedan divergir.
+``scrap crawl jumbo_rsc`` y esta prueba no puedan divergir.
 """
 
 import unittest
